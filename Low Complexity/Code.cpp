@@ -18,6 +18,8 @@
  *
  * Sekwencja jest wczytywana z pliku.
  * Sprawdzenie poprawnosci przelacznikow, zalresow parametrow
+ *
+ * long
 */
 
 #include <iostream>
@@ -25,9 +27,7 @@
 #include <fstream>
 #include <string>
 #include <cmath>
-#include <cstring>
 #include <vector>
-#include <map>
 
 using namespace std;
 
@@ -38,58 +38,180 @@ int MaxSubstring(int length) {
   return max_substring;
 }
 
-//======================================================= funkcja tworzy tablice sufiksowa, przyjmijac sekwencje liter
-vector<int> SuffixArray(string &sequance_char) {
+//if (sequance_char.length() == 1) return vector<int>{0}; // przyspieszenie, mononukleotyd ma {0}
 
-  if (sequance_char.length() == 1) return vector<int>{0}; // przyspieszenie, mononukleotyd ma {0}
+int GetMax(const vector<int> &array) {
+  int maximum = -1;
+  for (auto i : array) if (i > maximum) maximum = i;
+  return maximum;
+}
 
-  vector<int> sequence; // sekwencja liczb
-  for (char &i : sequance_char) sequence.push_back(i - 'A'); // przepisac na numery alfabetu
-  sequence.push_back(0); // dla ulatwienia dodajemy zerowy symbol na koniec
+inline bool Compare2(int i, int j, int k, int l) {
+  return (i < j || i == j && k < l);
+}
 
-  //============================================================ definicja zmiennych
-  int length = (int) sequence.size();
-  int counter = 0;  // zmienna pomocnicza, licznik dla sortowania
-  int num_class = 0;  // liczba klas rownowaznosci
+inline bool Compare3(int i, int j, int k, int l, int m, int n) {
+  return Compare2(i, j, k, l) || (i == j && k == l && m < n);
+}
 
-  vector<int> c(length); // klasa rownowaznosci
-  vector<int> p(length); // permutacja
+vector<int> RadixSort(vector<int> numerical_long, vector<int> index, int num_tripletes, int max_element, int position) {
 
-  map<int, vector<int> > map_map; // mapa - pojemnik majacy sklad <klucz - wartosc>
-  for (int i = 0; i < length; i++) map_map[sequence[i]].push_back(i); // wypelnic mape
+  vector<int> count_sort(max_element + 1);
+  vector<int> sorted_triplets(num_tripletes);
 
-  //=================================================================== faza zerowa
-  for (auto &item_map : map_map) { // przejscie przez mape
-    // przejscie przez wektor (drugi argument)
-    for (int item_vector : item_map.second) c[item_vector] = num_class, p[counter++] = item_vector;
-    num_class++;
+  for (int i = 0; i < num_tripletes; i++) count_sort[numerical_long[index[i] + position]]++;
+  for (int i = 1; i <= max_element; i++) count_sort[i] += count_sort[i - 1];
+  for (int i = num_tripletes - 1; i >= 0; i--)
+    sorted_triplets[--count_sort[numerical_long[index[i] + position]]] = index[i];
+
+  return sorted_triplets;
+}
+
+bool NameTriplets(int tripletNumber, vector<int> numerical_long, vector<int> sorted, vector<int> &lex_name) {
+  int name = 1;
+  bool is_unique = true;
+  for (int i = 1; i < tripletNumber; i++) {
+    if ((numerical_long[sorted[i]] == numerical_long[sorted[i - 1]]) &&
+        (numerical_long[sorted[i] + 1] == numerical_long[sorted[i - 1] + 1]) &&
+        (numerical_long[sorted[i] + 2] == numerical_long[sorted[i - 1] + 2]))
+      is_unique = false;
+    else name++;
+
+    lex_name[i] = name;
+  }
+  return is_unique;
+}
+
+vector<int> ConcatenateTripletNames(int n0, int num_triplets, vector<int> sorted_tripletrs, vector<int> lex_name) {
+
+  vector<int> lex_name_sorted(num_triplets);
+
+  for (int i = 0; i < num_triplets; i++) {
+    if (sorted_tripletrs[i] % 3 == 1) lex_name_sorted[(sorted_tripletrs[i] - 1) / 3] = lex_name[i];
+    if (sorted_tripletrs[i] % 3 == 2) lex_name_sorted[(sorted_tripletrs[i] - 2) / 3 + n0] = lex_name[i];
   }
 
-  for (int iterator = 1; num_class < length; iterator++) { // dopoki wszystkie sufiksy nie sa unikatowe
+  return lex_name_sorted;
+}
 
-    vector<vector<int> > array(num_class);  // tablica dla sortowania liczeniem
-    vector<int> c_new(length);  // nowe klasy rownowaznosci
-    int distance = (1 << iterator) / 2; // 1 --> 1, 2 --> 2, 3 --> 4, 4 --> 8
-    int num_class_new = counter = 0;  // nowa liczba klas
-
-    for (int i = 0; i < length; i++) {
-      int k = (p[i] - distance + length) % length;
-      array[c[k]].push_back(k);
-    }
-
-    for (int i = 0; i < num_class; i++) {
-      for (size_t j = 0; j < array[i].size(); j++) {
-        // jesli sufix zaczyna nowa klase rownowaznosci
-        if (j == 0 || c[(array[i][j] + distance) % length] != c[(array[i][j - 1] + distance) % length]) num_class_new++;
-        c_new[array[i][j]] = num_class_new - 1;
-        p[counter++] = array[i][j];
-      }
-    }
-    c = c_new;
-    num_class = num_class_new;
+void TransformToA12(int n0, int num_triplets, vector<int> suffix_array, vector<int> &A12) {
+  for (int i = 0; i < num_triplets; i++) {
+    if (suffix_array[i] < n0) A12[i] = 1 + 3 * suffix_array[i];
+    else A12[i] = 2 + 3 * (suffix_array[i] - n0);
   }
+}
 
-  return vector<int>(p.begin() + 1, p.end()); // zwracanie tablicy sufiksowej
+void deriveA0(int num_triplets, vector<int> &A12, vector<int> &A0) {
+  for (int i = 0, j = 0; i < num_triplets; i++)
+    if (A12[i] % 3 == 1) A0[j++] = A12[i] - 1;
+}
+
+void Merge(int n,
+           int tripletNumber,
+           vector<int> numerical_string,
+           vector<int> &A12,
+           vector<int> &A0,
+           vector<int> &resultSA) {
+  vector<int> R12(numerical_string.size());
+  int n0 = (int) ceil(n / 3.0);
+
+  int index0 = 0;
+  int index12 = 0;
+  int m = 0;
+  bool end = false;
+
+  if (n % 3 == 1) index12 = 1;
+
+  for (int i = 0; i < tripletNumber; i++) R12[A12[i]] = i + 1;
+
+  for (int i = 0; i < tripletNumber + n0; i++) {
+    if (index0 == n0) {
+      while (index12 < tripletNumber) resultSA[m++] = A12[index12++];
+      end = true;
+    }
+    if (end) break;
+
+    if (index12 == tripletNumber) {
+      while (index0 < n0) resultSA[m++] = A0[index0++];
+      end = true;
+    }
+    if (end) break;
+
+    if (A12[index12] % 3 == 1) {
+      if (Compare2(numerical_string[A0[index0]],
+                   numerical_string[A12[index12]],
+                   R12[A0[index0] + 1],
+                   R12[A12[index12] + 1])) {
+        resultSA[m++] = A0[index0++];
+      } else resultSA[m++] = A12[index12++];
+    } else {
+      if (Compare3(numerical_string[A0[index0]],
+                   numerical_string[A12[index12]],
+                   numerical_string[A0[index0] + 1],
+                   numerical_string[A12[index12] + 1],
+                   R12[A0[index0] + 2],
+                   R12[A12[index12] + 2])) {
+        resultSA[m++] = A0[index0++];
+      } else resultSA[m++] = A12[index12++];
+    }
+  }
+}
+
+vector<int> MakeSuffixArray(vector<int> numerical, int max_element) {
+  int n = numerical.size(); // liczba elementow wektora
+  int n0 = (int) ceil(n / 3.0);
+  int n1 = (int) ceil((n - 1) / 3.0);
+  int n2 = (int) ceil((n - 2) / 3.0);
+  int num_triplet = n0 + n2;
+
+  // dopelnienie zerami
+  if (n % 3 == 0 || n % 3 == 2) numerical.insert(numerical.cend(), {0, 0});
+  else numerical.insert(numerical.cend(), {0, 0, 0});
+
+  // tablica indelsow ktore nie sa podzielone przez 3
+  vector<int> index;
+  for (int i = 0; i < numerical.size() - 2; i++) if (i % 3 != 0) index.push_back(i);
+
+  vector<int> sorted_triplets; // posortowane trojki
+
+  // radix sort (pozycja od konca)
+  sorted_triplets = RadixSort(numerical, index, num_triplet, max_element, 2);
+  sorted_triplets = RadixSort(numerical, sorted_triplets, num_triplet, max_element, 1);
+  sorted_triplets = RadixSort(numerical, sorted_triplets, num_triplet, max_element, 0);
+
+  // nazwy trojek
+  vector<int> lex_name(num_triplet);
+  lex_name[0] = 1;
+
+  bool is_unique = NameTriplets(num_triplet, numerical, sorted_triplets, lex_name);
+
+  // laczenie nazw w dobrym porzadku
+  vector<int> lex_name_sorted;
+  lex_name_sorted = ConcatenateTripletNames(n0, num_triplet, sorted_triplets, lex_name);
+
+  // budowa tablicy sufiksowej
+  vector<int> suffix_array(num_triplet);
+
+  if (!is_unique) {
+    int maximum = GetMax(lex_name_sorted);
+    suffix_array = MakeSuffixArray(lex_name_sorted, maximum);
+  } else for (int i = 0; i < num_triplet; i++) suffix_array[lex_name_sorted[i] - 1] = i;
+
+  // transformacja suffix w A12
+  vector<int> A12(num_triplet);
+  TransformToA12(n0, num_triplet, suffix_array, A12);
+
+  // wyorebnienie A0 z A12
+  vector<int> A0(n0);
+  deriveA0(num_triplet, A12, A0);
+
+  A0 = RadixSort(numerical, A0, n0, max_element, 0); // sortowanie radix
+
+  // Polaczenie A12 and A0 w wynikowa tablice
+  vector<int> suffix_array_exit(n0 + num_triplet - (n0 - n1));
+  Merge(n, num_triplet, numerical, A12, A0, suffix_array_exit);
+
+  return suffix_array_exit;
 }
 
 //=================================================================================== algorytm Kasai tworzy tablice lcp
@@ -137,10 +259,11 @@ int main(int argc, char **argv) {
 
   //============================================================================================ definicja zmiennych
   fstream file_from; // plik dla odczytu
+  string line; // wiersz w firmacie fasta
   string sequence; // sekwencja oryginalna
   string cut_sequence; // sekwencja po wprowadzeniu szerokosci okna
   unordered_set<string> result; // set z uwzglednieniem progu zlozonosci
-  int location[2] = {-1, -1}; // tablica przechowuje polozenie
+  long location[2] = {-1, -1}; // tablica przechowuje polozenie
   float lc; // zlozonosc lingwistyczna
   int max_substring; // mianownik (liczba podciagow alfabetu)
   int unique; // licznik (liczba unikatowych podciagow)
@@ -149,10 +272,22 @@ int main(int argc, char **argv) {
   int wide = 12; // szerokosc okna (wartosc programu seg)
   float threshold = 0.6; // prog (wartosc = 2.5 / 4.322 z programu seg)
 
+  //===================================================================== opcja "help" jesli wpisac sama nazwe programu
+  if (argc == 1) {
+    cout << "Usage: /lc4 <file> <options>\n"
+            "\t<file> - filename containing fasta-formatted sequence\n"
+            "\t<options>\n"
+            "\t\t-w <window> OPTIONAL window size (default 12)\n"
+            "\t\t-t <threshold> OPTIONAL low complexity (default 0.6)\n";
+
+    return 0;
+  }
+
   for (int i = 2; i < argc; i += 2) { // nadanie wartosci argumentom
-    if ((string)argv[i] == "-w" &&  stoi(argv[i + 1]) > 0) wide = stoi(argv[i + 1]);
-    else if ((string)argv[i] == "-t" && (float(stoi(argv[i + 1])) >= 0 || float(stoi(argv[i + 1])) <= 1))
-      threshold = float(stoi(argv[i + 1]));
+    if ((string) argv[i] == "-w" && stoi(argv[i + 1]) > 0) wide = stoi(argv[i + 1]);
+    else if ((string) argv[i] == "-t" && stof((string)(argv[i + 1])) > 0 && stof((string)(argv[i + 1])) <= 1)
+      threshold = stof((string)(argv[i + 1]));
+
     else {
       cout << "Niepoprawny przelacznik albo niedozwolona wartosc parametru" << endl
            << "Kontynuować z wartosciami domyslnymi? ( yes / no) ";
@@ -170,8 +305,9 @@ int main(int argc, char **argv) {
 
   //================================================================================= odczyt pliku
   file_from.open(string(argv[1]).c_str(), fstream::in);
-  getline(file_from, sequence); // fasta jest zapisany w jednej linii
-  sequence = sequence.substr(sequence.find_last_of(' ') + 1); // sekwecja jest ostatnim slowem
+  getline(file_from, line); // przeczytac komentarz >
+
+  while (getline(file_from, line)) sequence += line;
   file_from.close();
 
   if (wide > sequence.length()) {
@@ -180,18 +316,28 @@ int main(int argc, char **argv) {
   }
 
   //================================================================================= algorytm
-  for (int window_start = 0; window_start + wide <= sequence.length(); window_start++) { // wprowadzenie przesuwania
+  for (long window_start = 0; window_start + wide <= sequence.length();
+       window_start++) { // wprowadzenie przesuwania
 
     cut_sequence = sequence.substr(window_start, wide); // ograniczenie sekwencji do rozmiaru okna
-    unique -= Kasai(cut_sequence, SuffixArray(cut_sequence)); // podwojne uzycie funlcji, aby nie tworzyc dodatkowych zmienncyh
+    vector<int> seq_numerical;
+
+    if (cut_sequence.length() != 1) {
+
+      for (char &i : cut_sequence) seq_numerical.push_back(i - 'A'); // przepisac na numery alfabetu
+      int maximum = GetMax(seq_numerical); // maksymalny numer w sekwencji (A == 0, C == 2, G == 6, T == 19)
+      // podwojne uzycie funlcji, aby nie tworzyc dodatkowych zmienncyh
+      unique -= Kasai(cut_sequence, MakeSuffixArray(seq_numerical, maximum));
+    } // inaczej odejmujemy zero, czyli nic nie robimy
 
     // jesli region ma niska zlozonosc, to dodaje zbior do tablicy wynikowej
     lc = float(unique) / float(max_substring); // rzutowanie typu
-    if (lc <= threshold && !result.count(cut_sequence)) {
+    if (lc >= 0 && lc <= threshold && !result.count(cut_sequence)) {
+      //cout << endl << "TO JEST LC == " << lc << endl;
       result.insert(cut_sequence);
 
       //================================================================================= wypisywanie z polaczeniem
-      // jesli wartosci polozenia sa defaultowe, to ustwic nowe
+      // jesli wartosci polozenia sa defaultowe (nielogiczne), to ustwic nowe
       if (location[0] == -1 && location[1] == -1) {
         location[0] = window_start;
         location[1] = window_start + wide;
@@ -210,7 +356,7 @@ int main(int argc, char **argv) {
     }
   } // koniec algorytmu
 
-  if (lc <= threshold) { // wypisac pozostalosc z buforu, jesli ostatnia zlozonosc byla dobra
+  if (lc <= threshold && !(location[0] == -1 || location[1] == -1)) { // wypisac pozostalosc z buforu, jesli ostatnia zlozonosc byla dobra
     cout << ">id " << string(argv[1]).substr(0, string(argv[1]).find_last_of('.')) << " " << location[0] + 1 << ":"
          << location[1] << endl;
     cout << sequence.substr(location[0], location[1] - location[0]) << endl;
