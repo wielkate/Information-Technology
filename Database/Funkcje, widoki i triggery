@@ -1,0 +1,385 @@
+///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+
+FUNKCJA 1. Pytamy, czy osoba pełni rolę …
+
+IF OBJECT_ID('AreYouA', 'FN') IS NOT NULL DROP FUNCTION AreYouA
+
+GO
+CREATE FUNCTION AreYouA(@Name NVARCHAR(50), @Profession NVARCHAR(50)) RETURNS CHAR(3) AS BEGIN
+
+	DECLARE @PersonID INT
+	SET @PersonID = (SELECT PersonID FROM People WHERE Name = @Name)
+	DECLARE @ActualProfession NVARCHAR(50);
+	DECLARE @Result CHAR(3);
+	SET @ActualProfession = (SELECT DISTINCT Profession FROM [People and Movies]  WHERE PersonID = @PersonId AND Profession = @Profession);
+	IF (@ActualProfession IS NOT NULL) BEGIN
+		SET @Result = 'Yes';
+	END ELSE BEGIN
+		SET @Result = 'No';
+	END
+	RETURN @Result;
+
+END
+GO
+
+SELECT dbo.AreYouA('Leonardo DiCaprio', 'Director')
+
+///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+
+FUNKCJA 2.  Konwersja Budżet.
+
+IF OBJECT_ID('HowMuch') IS NOT NULL DROP FUNCTION HowMuch
+
+GO
+CREATE FUNCTION HowMuch (
+	@MovieID INT, --ten nas ciekawi
+	@Waluta CHAR(3))
+	RETURNS MONEY
+
+	BEGIN
+
+		DECLARE @A MONEY -- budzet
+		DECLARE @B MONEY -- equal
+		SET @A = (SELECT [Budget ($)] FROM Movies WHERE @MovieID = MovieID)
+		SET @B = (SELECT [Equal 1$] FROM [Currency Conversion] WHERE 'Num_' + @Waluta = [Currency Name])
+		RETURN (@A * @B)
+	END 
+
+SELECT dbo.HowMuch(10, 'RUB')
+
+///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+
+FUNKCJA 3.  Sprawdza, czy osoba jeszcze żyje.
+
+IF OBJECT_ID('AreYouAlive', 'FN') IS NOT NULL DROP FUNCTION AreYouAlive
+
+GO
+CREATE FUNCTION AreYouAlive(@Name NVARCHAR(50)) RETURNS CHAR(3) AS BEGIN
+
+	DECLARE @DateOFDeath DATE;
+	DECLARE @Result CHAR(3);
+	SET @DateOFDeath = (SELECT Date_of_death FROM People  WHERE Name = @Name);
+	IF (@DateOFDeath IS NULL) BEGIN
+		SET @Result = 'Yes';
+	END ELSE BEGIN
+		SET @Result = 'No';
+	END
+	RETURN @Result;
+
+END
+GO
+
+SELECT dbo.AreYouAlive('Leonardo DiCaprio')
+
+///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+
+FUNKCJA 4.  Pytamy, w ilu filmach osoba była aktorem czy reżyserem (number of films).
+
+IF OBJECT_ID('HowManyFilms', 'FN') IS NOT NULL DROP FUNCTION HowManyFilms
+
+GO
+CREATE FUNCTION HowManyFilms(@Name NVARCHAR(50), @Profession NVARCHAR(50)) RETURNS INT AS BEGIN
+
+	DECLARE @PersonID INT = (SELECT PersonID FROM People WHERE Name = @Name)
+	DECLARE @Result INT = (SELECT COUNT(*) FROM [People and Movies] 
+	WHERE [People and Movies].PersonID = @PersonID AND [People and Movies].Profession = @Profession)
+	RETURN @Result;
+
+END
+GO
+
+SELECT dbo.HowManyFilms('Leonardo DiCaprio', 'Director')
+
+
+///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+
+FUNKCJA 5.  Pytamy, ile nagród ma osoba (number of awards).
+
+
+IF OBJECT_ID('HowManyAwards', 'FN') IS NOT NULL DROP FUNCTION HowManyAwards
+
+GO
+CREATE FUNCTION HowManyAwards(@Name NVARCHAR(50)) RETURNS INT AS BEGIN
+
+	DECLARE @PersonID INT = (SELECT PersonID FROM People WHERE Name = @Name)
+	DECLARE @Result INT = (SELECT COUNT(*) FROM [People & Awards]
+	WHERE [People & Awards].PersonID = @PersonID)
+	RETURN @Result;
+
+END
+GO
+
+SELECT dbo.HowManyAwards('Leonardo DiCaprio')
+
+
+//////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+
+FUNKCJA 6.  Pytamy o ranking filmu w naszej bazie.
+
+IF OBJECT_ID('OurRanking', 'FN') IS NOT NULL DROP FUNCTION OurRanking
+
+GO
+CREATE FUNCTION OurRanking(@Id INT) RETURNS FLOAT AS BEGIN
+
+	DECLARE @Result INT = (SELECT AVG(Rate) FROM [User's Ratings] 
+	WHERE MovieID = @Id)
+	RETURN @Result;
+
+END
+GO
+
+SELECT dbo.OurRanking(13) AS '/10'
+
+//////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+
+FUNKCJA 7. Wyświetla filmy, droższe od podanej kwoty.
+
+CREATE FUNCTION FilmyDrozszeOD ( @Kwota money )
+RETURNS @Lista TABLE
+ (
+ MovieID int,
+ MovieName nvarchar(80)
+ )
+AS
+BEGIN
+ INSERT INTO @Lista
+ SELECT MovieID, Movie_Name
+ FROM Movies
+ WHERE [Budget ($)] > @Kwota
+ RETURN
+END
+
+
+SELECT *
+FROM dbo.FilmyDrozszeOD( 500000 )
+
+//////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+
+FUNKCJA 8. Wyświetla listę filmów określonej osoby.
+
+CREATE FUNCTION ListaFilmowOsoby ( @Imie NVARCHAR(50) )
+RETURNS @Lista TABLE
+ (
+ MovieID int,
+ MovieName nvarchar(80)
+ )
+AS
+BEGIN
+ INSERT INTO @Lista
+ SELECT M2.MovieID, M3.Movie_Name
+ FROM People M1 JOIN [People and Movies] M2 ON M1.PersonID = M2.PersonID JOIN Movies M3 ON M3.MovieID = M2.MovieID
+ WHERE M1.Name = @Imie
+ RETURN
+END
+
+
+SELECT *
+FROM dbo.ListaFilmowOsoby('leonardo dicaprio')
+
+//////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+
+FUNKCJA 6.  Pytamy, ile filmów jest z danego kraju.
+
+F OBJECT_ID('HowManyFilmsFROM', 'FN') IS NOT NULL DROP FUNCTION HowManyFilmsFROM
+
+GO
+CREATE FUNCTION HowManyFilmsFROM(@country NVARCHAR(50)) RETURNS INT AS BEGIN
+
+	DECLARE @Result INT = (SELECT COUNT(*) FROM [Movies and Locations] 
+	WHERE [Movies and Locations].Country = @country)
+	RETURN @Result;
+END
+GO
+
+SELECT dbo.HowManyFilmsFROM('USA')
+
+
+
+PROC 1. Najdroższy film.
+
+
+IF OBJECT_ID('Most_expensive_movie') IS NOT NULL DROP PROC Most_expensive_movie
+
+GO
+CREATE PROC Most_expensive_movie
+AS
+	SELECT Movie_Name AS 'The most expensive movie' FROM Movies 
+	WHERE [Budget ($)] = (SELECT MAX([Budget ($)]) FROM Movies)
+
+EXEC Most_expensive_movie
+
+
+//////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+
+PROC 2. Najslynniejsza osoba
+
+IF OBJECT_ID('Most movies') IS NOT NULL DROP PROC [Most movies]
+
+GO
+CREATE PROC [Most movies]
+AS
+	SELECT TOP 1 WITH TIES P1.Name, COUNT(P2.PersonID) AS [Number of movies] 
+	FROM People P1 JOIN [People and Movies] P2 ON P1.PersonID = P2.PersonID 
+	GROUP BY P1.Name
+	ORDER BY [Number of movies] DESC
+
+EXEC [Most movies]
+
+
+//////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+
+PROC 3. Lista osob na litere
+
+IF OBJECT_ID('lista_na_litere') IS NOT NULL DROP PROC lista_na_litere
+
+CREATE PROC lista_na_litere ( @litera_1 CHAR )
+AS
+SELECT Name FROM People
+WHERE Name LIKE @litera_1 + '%' 
+
+EXEC lista_na_litere 'A'
+
+//////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+
+PROC 4. Filmy z okreslonego kraju
+
+IF OBJECT_ID('FilmyZkraju') IS NOT NULL DROP PROC FilmyZkraju
+
+CREATE PROC FilmyZkraju ( @country NVARCHAR(50) )
+AS
+SELECT Movie_Name 
+FROM Movies M1 JOIN [Movies and Locations] M2
+ON M1.MovieID = M2.MovieID
+WHERE M2.Country = @country 
+
+EXEC FilmyZkraju 'UK'
+
+//////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+
+PROC 5. Film na temat
+
+IF OBJECT_ID('FilmNaTemat') IS NOT NULL DROP PROC FilmNaTemat
+
+CREATE PROC FilmNaTemat ( @temat NVARCHAR(50) )
+AS
+SELECT Movie_Name 
+FROM Movies M1 JOIN [Movies and Topics] M2
+ON M1.MovieID = M2.MovieID
+WHERE M2.Topic = @temat 
+
+EXEC FilmNaTemat 'Time travel'
+
+//////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+
+PROC 6. Filmy ocenione przez danego użtkownika
+
+CREATE PROC MoviesRated (@UserID INT) AS
+	SELECT Movie_Name, [User's Ratings].UserID FROM Movies
+	JOIN [User's Ratings] ON Movies.MovieID = [User's Ratings].MovieID
+	WHERE (@UserID = UserID)
+
+//////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+
+TRIGGER 1. Instead of delete na tabeli People
+
+IF OBJECT_ID('On_Delete', 'TR') IS NOT NULL DROP TRIGGER On_Delete
+
+GO
+CREATE TRIGGER On_Delete ON People
+INSTEAD OF DELETE
+AS
+	UPDATE People
+	SET Deleted_at = CURRENT_TIMESTAMP
+	WHERE (PersonID IN (SELECT PersonID FROM deleted D WHERE (PersonID = D.PersonID)))
+GO
+
+DELETE FROM People WHERE PersonID = 10
+SELECT * FROM People
+
+/////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+
+TRIGGER 2. After update na tabeli People
+
+IF OBJECT_ID('On_Update', 'TR') IS NOT NULL DROP TRIGGER On_Update
+
+GO
+CREATE TRIGGER On_Update ON People
+AFTER UPDATE
+AS
+	UPDATE People
+	SET Updated_at = CURRENT_TIMESTAMP
+	WHERE (PersonID IN (SELECT PersonID FROM deleted D WHERE (PersonID = D.PersonID)))
+GO
+
+UPDATE People
+SET Date_of_death = '2022-02-13’'
+WHERE PersonID = 5
+
+SELECT * FROM People
+
+/////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+
+TRIGGER 3. After update na tabeli Movies
+
+IF OBJECT_ID('On_Update_M', 'TR') IS NOT NULL DROP TRIGGER On_Update_M
+
+GO
+CREATE TRIGGER On_Update_M ON Movies
+AFTER UPDATE
+AS
+	UPDATE Movies
+	SET Updated_at = CURRENT_TIMESTAMP
+	WHERE (MovieID IN (SELECT MovieID FROM deleted D WHERE (MovieID = D.MovieID)))
+GO
+
+
+///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+
+TRIGGER 4. After insert na tabeli People
+
+IF OBJECT_ID('Num_Film_Actor', 'TR') IS NOT NULL DROP TRIGGER Num_Film_Actor
+
+GO
+CREATE TRIGGER Num_Film_Actor ON People
+AFTER INSERT
+AS	
+
+	DECLARE @Id INT --osoba
+	SET @Id = (SELECT TOP 1 INSERTED.PersonID FROM INSERTED)
+	DECLARE @Count INT --liczba
+	SET @Count = (SELECT COUNT(*) FROM [People and Movies] P1 WHERE P1.PersonID = @Id AND P1.Profession = 'Actor')
+	UPDATE People
+	SET Num_movies_actor = @Count
+	WHERE PersonID = @Id
+
+GO
+
+///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+
+VIEW 1. Ranking użytkowników
+
+CREATE VIEW Ranking AS
+	SELECT Movie_Name, AVG(Rate) AS Rating FROM Movies 
+	JOIN [User's Ratings] ON Movies.MovieID=[User's Ratings].MovieID
+	GROUP BY Movies.Movie_Name
+
+//////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+
+VIEW 2. Nagrodzeni aktorzy
+
+CREATE VIEW Actors AS
+	SELECT Name, COUNT(AwardID) AS Number_of_awards FROM People
+	JOIN [People & Awards] ON People.PersonID = [People & Awards].PersonID
+	WHERE Deleted_at IS NULL
+	GROUP BY People.Name
+
+/////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+
+VIEW 3. Czas trwania filmów
+
+CREATE VIEW Durations AS
+	SELECT Movie_Name, Duration, IMDB_Rating FROM Movies
+GO
+
+SELECT * FROM Durations
+ORDER BY Duration ASC
