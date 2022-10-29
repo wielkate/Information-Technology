@@ -8,6 +8,11 @@ Celem projektu jest utworzenie uproszczonej wersji programu **seg** - narzędzia
  -  *t* - próg od 0 do 1, od którego uznajemy region za lc (domyślnie 0.6).
  -  Opcja *help* wyświetli się, jeśli podać samą nazwę skryptu.
 
+Przykład uruchomienia:
+<pre><code>g++ -o lc lc.cpp
+./lc example.fasta -w 9 -t 0.875
+</code></pre>
+
 Program powinien zwrócić te regiony w postaci podsekwencji w formacie poniżej. Sekwencje, które nakładają się na siebie, są połączone przy wypisywaniu.
 
 <pre><code>>id seq 20:40 (położenie)
@@ -15,7 +20,7 @@ ACGACGAAAAA...
 </code></pre>
 
 <h3> Czym jest LCR? </h3>
-Regiony o niskiej złożoności (LCRs) są fragmentami sekwencji aminokwasowych wyróżniającymi się nierównomiernym wykorzystaniem puli znaków alfabetu.LCR odgrywają istotną rolę podczas ekspresji białek heterologicznych.
+Regiony o niskiej złożoności (LCRs) są fragmentami sekwencji aminokwasowych wyróżniającymi się nierównomiernym wykorzystaniem puli znaków alfabetu LCR odgrywają istotną rolę podczas ekspresji białek heterologicznych.
 
 <h3> Jak obliczyć złożoność lingwistyczną? </h3>
 
@@ -33,9 +38,9 @@ Regiony o niskiej złożoności (LCRs) są fragmentami sekwencji aminokwasowych 
 <br> &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;
 *man(a,n)* - maksymalna możliwa liczba unikalnych podciągów z wykorzystaniem całego alfabetu
 
-<br> Przykład. Niech *s* = ATTTGGATT, moc alfabrtu DNA *(a)* = 4. Wtedy *sub(s)* = 35, a *m(a,n)* = 40, więc *lc* = 0.875.
+<br> Przykład. Niech *s* = ATTTGGATT, moc alfabetu DNA *(a)* = 4. Wtedy *sub(s)* = 35, a *m(a,n)* = 40, więc *lc* = 0.875.
 
-<h3> ASD (Algorytmy i stuktury danych) </h3>
+<h3> ASD (Algorytmy i struktury danych) </h3>
 
 Dla obliczenia liczebnika trzeba wyznaczyć liczbę podsłów. Istnieją struktury danych, które mogą nam pomóc w rozwiązaniu problemu z lepszą złożonością czasową, między innymi, **tablice sufiksowe.** Używając tablicy sufiksowej, otrzymamy odpowiedź ze wzoru mianownik w czasie **O(n)** - liniowa złożoność.
 
