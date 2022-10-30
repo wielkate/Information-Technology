@@ -14,4 +14,8 @@ Cześć! Jestem Kasia, studiuję Bioinformatykę na Uniwersytecie Jagiellońskim
 
 <img width="50px" src="https://user-images.githubusercontent.com/80549277/198856750-89b4a522-3049-4afa-855c-96f805106fd6.png" /> <img width="50px" src="https://user-images.githubusercontent.com/80549277/198856764-212ec8dc-c9b1-4e95-b8fd-a1da09e5fe65.png" /> 
 <img width="50px" src="https://user-images.githubusercontent.com/80549277/198856773-6b635e2b-63fa-47ae-8e3f-5e51e9c2ea58.jpg" />
-<br>
+<br><br>
+
+<pre><code> "... Don't let the noise of other's opinions drown out your own inner voice".
+                                                                 (Steve Jobs)
+</code></pre> 
