@@ -232,9 +232,7 @@ vector<int> MakeSuffixArray(vector<int> numerical, int max_element) {
 
 //=================================================================================== algorytm Kasai tworzy tablice lcp
 int Kasai(string seq, vector<int> suffix_array) {
-
-  if (seq.length() == 1) return 0; // przyspieszenie dla mononukleotydu
-
+  
   int length_seq = seq.size();
 
   vector<int> lcp(length_seq, 0); // tablica lcp
@@ -352,13 +350,14 @@ int main(int argc, char **argv) {
 	cut_sequence = sequence.substr(window_start, wide); // ograniczenie sekwencji do rozmiaru okna
 	vector<int> seq_numerical;
 
+	// szerokosc okna jest jednoczesnia dlugoscia cut, wiec ze wzoru n * (n + 1) / 2 znajdziemy liczbe wszystkich podciagow
+	unique = wide * (wide + 1) / 2;
+
 	if (cut_sequence.length() != 1) {
 
 	  for (char &i : cut_sequence) seq_numerical.push_back(i - 'A'); // przepisac na numery alfabetu
 	  int maximum = GetMax(seq_numerical); // maksymalny numer w sekwencji (A == 0, C == 2, G == 6, T == 19)
 
-	  // szerokosc okna jest jednoczesnia dlugoscia cut, wiec ze wzoru n * (n + 1) / 2 znajdziemy liczbe wszystkich podciagow
-	  unique = wide * (wide + 1) / 2;
 	  // podwojne uzycie funlcji, aby nie tworzyc dodatkowych zmienncyh
 	  unique -= Kasai(cut_sequence, MakeSuffixArray(seq_numerical, maximum));
 	} // inaczej odejmujemy zero, czyli nic nie robimy
