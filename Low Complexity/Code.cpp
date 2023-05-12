@@ -25,8 +25,15 @@
 #include <string>
 #include <cmath>
 #include <vector>
+#include <ctime> // data i czas dla widoku seg
+#include <iomanip> // formatowanie wyswietlenia
 
 using namespace std;
+
+//=============================================================== struktura przechowuje polozenie lc-regionow (nowy typ)
+struct Location {
+  double from = -1, to = -1;
+};
 
 //============================================================================================ funkcja wylicza mianownik
 // przyjmuje szerokosc okna oraz podstawe (4 dla nukleotydow i 20 dla aminokwasow) jako argumenty
@@ -81,11 +88,10 @@ bool NameTriplets(int tripletNumber, vector<int> numerical_long, vector<int> sor
   int name = 1;
   bool is_unique = true;
   for (int i = 1; i < tripletNumber; i++) {
-	if ((numerical_long[sorted[i]] == numerical_long[sorted[i - 1]]) &&
+
+	((numerical_long[sorted[i]] == numerical_long[sorted[i - 1]]) &&
 		(numerical_long[sorted[i] + 1] == numerical_long[sorted[i - 1] + 1]) &&
-		(numerical_long[sorted[i] + 2] == numerical_long[sorted[i - 1] + 2]))
-	  is_unique = false;
-	else name++;
+		(numerical_long[sorted[i] + 2] == numerical_long[sorted[i - 1] + 2])) ? is_unique = false : name++;
 
 	lex_name[i] = name;
   }
@@ -232,7 +238,7 @@ vector<int> MakeSuffixArray(vector<int> numerical, int max_element) {
 
 //=================================================================================== algorytm Kasai tworzy tablice lcp
 int Kasai(string seq, vector<int> suffix_array) {
-  
+
   int length_seq = seq.size();
 
   vector<int> lcp(length_seq, 0); // tablica lcp
@@ -257,19 +263,47 @@ int Kasai(string seq, vector<int> suffix_array) {
   return sum; // zwraca sume elementow (duplikaty)
 }
 
-////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+//============================================================================= funkcja oblicza zlozonosc lingwistyczna
+// przyjmuje sekwencje (jednoczesnie szerokosc okna), dla ktorej ja oblicza oraz mianownik
+double LowComplexity(string cut_sequence, double max_substring) {
+
+  // ze wzoru n * (n + 1) / 2 znajdziemy liczbe wszystkich podciagow
+  unsigned int unique = cut_sequence.length() * (cut_sequence.length() + 1) / 2;
+  int duplicates;
+  vector<int> suffix_array;
+
+  if (cut_sequence.length() != 1) {
+
+	vector<int> seq_numerical;
+	for (char &i : cut_sequence) seq_numerical.push_back(i - 'A'); // przepisac na numery alfabetu
+	int maximum = GetMax(seq_numerical); // maksymalny numer w sekwencji (A == 0, C == 2, G == 6, T == 19)
+
+	suffix_array = MakeSuffixArray(seq_numerical, maximum);
+	duplicates = Kasai(cut_sequence, suffix_array);
+	unique -= duplicates;
+  } // inaczej odejmujemy zero, czyli nic nie robimy
+
+  return double(unique) / double(max_substring); // rzutowanie typu
+}
+
+///////////////////////////////////////////// MAIN /////////////////////////////////////////////////////////////////////
 
 int main(int argc, char **argv) {
 
 //================================================================================================= definicja zmiennych
   fstream file_from; // plik dla odczytu
-  string line; // wiersz w firmacie fasta
+  string line; // wiersz w formacie fasta
   string sequence; // sekwencja oryginalna
   string cut_sequence; // sekwencja po wprowadzeniu szerokosci okna
-  double location[2] = {-1, -1}; // tablica przechowuje polozenie
-  double lc; // zlozonosc lingwistyczna
-  double max_substring; // mianownik (liczba podciagow alfabetu)
-  int unique; // licznik (liczba unikatowych podciagow)
+  string sequence_cout; // sekwencja dla wypisania
+  string index_cout; // polozenie do wypisania
+
+  vector<Location> location; // wektor polozen (zapamieta wszystkie polozenia regionow lc)
+  location.push_back({-1, -1}); // element zerowy jest wykorzystany dla ustawienia granic regionu
+
+  double lc, lc_concatenation; // zlozonosc lingwistyczna dla kazdego podciagu i dla ciagu wynikowego
+  double max_substring, max_substring_concatenation; // mianownik (liczba podciagow alfabetu)
+  short output_mode; // tryb wyswietlenia
 
   // wprowadzenie wartosci defaultowych
   int wide = 12; // szerokosc okna (wartosc programu seg)
@@ -284,7 +318,7 @@ int main(int argc, char **argv) {
 			"\t<options>\n"
 			"\t\t-w <window> OPTIONAL window size (default 12)\n"
 			"\t\t-t <threshold> OPTIONAL low complexity (default 0.6)\n"
-			"\n\nPusty plik wyjsciowy oznacza brak pasujacych podsekwencji\n";
+			"\n\nPusty plik wyjsciowy (widok pierwszy) albo sekwencja bez X (widok drugi) oznaczaja brak pasujacych podsekwencji\n";
 
 	return 0;
   }
@@ -303,7 +337,7 @@ int main(int argc, char **argv) {
    * Z powyzszego wydruku widzimy, ze sa potezebne argumenty o indeksach nieparzystych :
    * nazwa pliku, szerokosc okna oraz prog, od ktorego uznajemy zlozonosc za niska */
 
-  if (!(stoi(argv[2]) == 20 || stoi(argv[2]) == 4 )){
+  if (!(stoi(argv[2]) == 20 || stoi(argv[2]) == 4)) {
 	cout << "Podstawa moze byc rowna albo 4 dla nukleotydow, albo 20 dla aminokwasow." << endl;
 	return -1;
   }
@@ -325,7 +359,7 @@ int main(int argc, char **argv) {
   }
 
   sequence = ""; // wyzerowanie sekwencji
-  max_substring = MaxSubstring(wide, stoi(argv[2])); // mianownik
+  max_substring = MaxSubstring(wide, stoi(argv[2])); // mianownik dla zwyklego lc
 
   //====================================================================================================== odczyt pliku
   file_from.open(string(argv[1]).c_str(), fstream::in);
@@ -344,53 +378,105 @@ int main(int argc, char **argv) {
 	return -1;
   }
 
+  //================================================================================================= wybor typu imputa
+  cout << "Prosze wybrac tryb wyswietlenia wyniku (1, 2, 3) \n"
+		  "1. Same lc-regiony \n"
+		  "2. seg \n"
+		  "3. Oba typy \n";
+  cin >> output_mode;
+
+  if (!(output_mode == 1 || output_mode == 2 || output_mode == 3)) {
+	cout << "Niepoprawna liczba" << endl;
+	return -1;
+  }
+
+  system("clear"); // oczyszczenie screenu dla zachowania tylko danych
+
   //========================================================================================================== algorytm
   for (long window_start = 0; window_start + wide <= sequence.length(); window_start++) { // wprowadzenie przesuwania
 
 	cut_sequence = sequence.substr(window_start, wide); // ograniczenie sekwencji do rozmiaru okna
-	vector<int> seq_numerical;
+	lc = LowComplexity(cut_sequence, max_substring);
 
-	// szerokosc okna jest jednoczesnia dlugoscia cut, wiec ze wzoru n * (n + 1) / 2 znajdziemy liczbe wszystkich podciagow
-	unique = wide * (wide + 1) / 2;
-
-	if (cut_sequence.length() != 1) {
-
-	  for (char &i : cut_sequence) seq_numerical.push_back(i - 'A'); // przepisac na numery alfabetu
-	  int maximum = GetMax(seq_numerical); // maksymalny numer w sekwencji (A == 0, C == 2, G == 6, T == 19)
-
-	  // podwojne uzycie funlcji, aby nie tworzyc dodatkowych zmienncyh
-	  unique -= Kasai(cut_sequence, MakeSuffixArray(seq_numerical, maximum));
-	} // inaczej odejmujemy zero, czyli nic nie robimy
-
-	lc = double(unique) / double(max_substring); // rzutowanie typu
-	
 	if (lc >= 0 && lc <= threshold) { // jesli region ma niska zlozonosc, to wypisanie
 
 	  //================================================================================= wypisywanie z polaczeniem
 	  // jesli wartosci polozenia sa defaultowe (nielogiczne), to ustwic nowe
-	  if (location[0] == -1 && location[1] == -1) {
-		location[0] = window_start;
-		location[1] = window_start + wide;
+	  if (location[0].from == -1 && location[0].to == -1) {
+		location[0].from = window_start;
+		location[0].to = window_start + wide;
 	  }
 		// jesli sekwencji sie pokrywaja, to wydluzyc koniec [0,10), [5,20) --> [0,20)
-	  else if (window_start < location[1]) location[1] = window_start + wide; // nie wchodzi
+	  else if (window_start < location[0].to) location[0].to = window_start + wide; // nie wchodzi
 
 	  else { // inaczej wypisac poprzednika i zdefiniowac polozenie na nowo
-		cout << ">id " << string(argv[1]).substr(0, string(argv[1]).find_last_of('.')) << " " << location[0] + 1 << ":"
-			 << location[1] << endl;
-		cout << sequence.substr(location[0], location[1] - location[0]) << endl;
 
-		location[0] = window_start;
-		location[1] = window_start + wide;
+		if (output_mode == 1 || output_mode == 3) { // wypisywanie tylko dla pierwszego i trzeciego trybow outputu
+
+		  index_cout = to_string(int(location[0].from) + 1) + ":" + to_string(int(location[0].to)); // polozenie
+		  sequence_cout = sequence.substr(location[0].from, location[0].to - location[0].from); // sekwencja do wypisania
+
+		  max_substring_concatenation = MaxSubstring(sequence_cout.length(), stoi(argv[2])); // nowa dlugosc ciagu => nowy mianownik
+		  lc_concatenation = LowComplexity(sequence_cout, max_substring_concatenation); // lc dla sklejonego ciagu
+
+		  cout << ">id " << string(argv[1]) << " " << setw(to_string(sequence.length()).length() * 2 + 1)
+			   << left << index_cout << " => " << lc_concatenation << endl << sequence_cout << endl;
+		}
+
+		// stad zaczyna sie zapamietywanie wszystkich polozen fragmentow o niskiej zlozonosci
+		// wlaczajac ostatnia litere
+		location.push_back({location[0].from, location[0].to});
+
+		location[0].from = window_start;
+		location[0].to = window_start + wide;
 	  }
 	}
   } // koniec algorytmu
 
   // wypisac pozostalosc z buforu, jesli ostatnia zlozonosc byla dobra
-  if (lc >= 0 && lc <= threshold && !(location[0] == -1 || location[1] == -1)) {
-	cout << ">id " << string(argv[1]).substr(0, string(argv[1]).find_last_of('.')) << " " << location[0] + 1 << ":"
-		 << location[1] << endl;
-	cout << sequence.substr(location[0], location[1] - location[0]) << endl;
+  if (lc >= 0 && lc <= threshold && !(location[0].from == -1 || location[0].to == -1)) {
+
+	if (output_mode == 1 || output_mode == 3) { // wypisywanie tylko dla pierwszego i trzeciego trybow outputu
+
+	  index_cout = to_string(int(location[0].from) + 1) + ":" + to_string(int(location[0].to)); // polozenie
+	  sequence_cout = sequence.substr(location[0].from, location[0].to - location[0].from); // sekwencja do wypisania
+
+	  max_substring_concatenation = MaxSubstring(sequence_cout.length(), stoi(argv[2])); // nowa dlugosc ciagu => nowy mianownik
+	  lc_concatenation = LowComplexity(sequence_cout, max_substring_concatenation); // lc dla sklejonego ciagu
+
+	  cout << ">id " << string(argv[1]) << " " << setw(to_string(sequence.length()).length() * 2 + 1)
+		   << left << index_cout << " => " << lc_concatenation << endl << sequence_cout << endl;
+	}
+
+	location.push_back({location[0].from, location[0].to}); // kontynuacja zapamietywania
+  }
+
+  if (output_mode == 3) cout << "\n\n"; // rozroznienie typow
+
+  ////////////////////////////////////////////// SEG //////////////////////////////////////////////////////////////////
+
+  if (output_mode == 2 || output_mode == 3) {
+	//=============================================================================================== definicja zmiennych
+	time_t second = time(nullptr); // liczba sekund
+	char *date_time = ctime(&second); // data i czas
+
+	string sequence_x = sequence; // oryginalna sekwencja z zamaskowaniem fragmentow lc litera X
+
+	// zamiana fragmentow na X
+	for (auto &&item : location) for (double i = item.from; i <= item.to; i++) sequence_x[i] = 'X';
+
+	//======================================================================================================= wypisywanie
+	cout << argv[1] << '\t' << "Length: " << sequence.length() << '\t' << date_time << endl; // nazwa pliku, dlugosc sekwencj, data i czas
+
+	for (int i = 0; i < sequence_x.length(); i++) { // format 1 MANLGCWMLV LFVATWSDLG LCKKRPKPGG WNTGGSRYPG QGSPGGNRYX
+
+	  // wyrownanie kolumn spacjami przy wypisywaniu
+	  if ((i + 1) % 50 == 1) cout << setw(to_string(sequence_x.length()).length() + 1) << left << i + 1;
+
+	  cout << sequence_x[i];
+	  if (((i + 1) % 50 == 0) || (i + 1 == sequence_x.length())) cout << endl;
+	  else if ((i + 1) % 10 == 0) cout << ' ';
+	}
   }
 
   return 0;
